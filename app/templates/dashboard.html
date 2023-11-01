@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sample Page</title>
+    <!-- Bootstrap CSS CDN -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .like-btn,
+        .comment-like-btn {
+            background: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .like-btn:hover,
+        .comment-like-btn:hover {
+            background: #2980b9;
+        }
+
+        .comment-box {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .question-form {
+            width: 300px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 20px;
+        }
+
+        .question-box {
+            width: 500px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            float: right;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark rounded">
+        <a class="navbar-brand" href="#">Navbar</a>
+        <ul class="navbar-nav ml-auto">
+            {% if user.is_authenticated %}
+            <li class="nav-item">
+                <a class="nav-link">{{ user.name }}</a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'logout' %}" class="nav-link">Logout</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+                <a href="{% url 'registration' %}" class="nav-link">Signup</a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'login' %}" class="nav-link">Login</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="question-form">
+                    <h3>Add a Question</h3>
+                    <form id="addQuestion">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="questionTitle">Title</label>
+                            <input type="text" class="form-control" name="title" id="questionTitle">
+                        </div>
+                        <div class="form-group">
+                            <label for="questionBody">Question</label>
+                            <textarea class="form-control" name="question" id="questionBody" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                </div>
+            </div>
+            <div class="col-lg-8">
+                {% for question in questions %}
+                <div class="question-box">
+                    <h3>{{question.title}}</h3>
+                    <p>{{question.description}}</p>
+                    <p>Posted by {{ question.posted_by.name}} at {{ question.added }}</p>
+                    <button class="like-btn" data-question-id="{{ question.id }}">Like</button>
+                    <span class="like-count">{{question.total_likes}}</span> Likes
+                    <hr>
+                    <div class="comments">
+                        {% for comment in question.comments.all %}
+                        <div class="comment">
+                            <p>{{comment.user_id.name}} : {{ comment.comment }}</p>
+                            <button class="comment-like-btn" data-comment-id="{{ comment.id }}">Like</button>
+                            <span class="comment-like-count">{{ comment.likes.count }}</span> Likes
+                        </div>
+                        {% endfor %}
+                        <div class="comment-box mt-3">
+                            <form class="comment-form">
+                            <input type="hidden" name="post_id" value="{{ question.id }}">
+                            <input type="text" name="comment" placeholder="Add a comment">
+                            <button>Post</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery and Bootstrap JS CDNs -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#addQuestion').on('submit', function(e) {
+            e.preventDefault();  // Prevent default form submission
+
+            // Serialize form data
+            var formData = $(this).serialize();
+
+            // AJAX post request
+            $.ajax({
+                type: 'POST',
+                url: '/add-question/',  // Replace with your actual URL
+                data: formData,
+                success: function(data) {
+                    // Handle success response
+                    console.log('Form submitted successfully');
+                    // You can perform further actions after successful form submission
+                    location.reload();
+                },
+                error: function(xhr, errmsg, err) {
+                    // Handle error
+                    console.log('Form submission error');
+                    console.log(xhr.status + ": " + xhr.responseText);  // Log any errors
+                }
+            });
+        });
+    });
+</script>
+<script>
+    $(document).ready(function() {
+        $('.like-btn').on('click', function(e) {
+            e.preventDefault();
+            var questionId = $(this).data('question-id');
+    
+            $.ajax({
+                type: 'POST',
+                url: '/add-like/' + questionId + '/',  // Replace with your actual URL
+                data: {
+                    'question_id': questionId,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.liked) {
+                        // If liked, update the like count display
+                        var likeCountSpan = $('.like-count[data-question-id="' + questionId + '"]');
+                        likeCountSpan.text(response.total_likes);
+                        location.reload();
+                    }
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log('Error while liking the question');
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        });
+    });
+</script>
+<script>
+    $(document).ready(function() {
+        $('.comment-form').on('submit', function(e) {
+            e.preventDefault();
+
+            var post_id = $(this).find('input[name="post_id"]').val();
+            var comment = $(this).find('input[name="comment"]').val();
+
+            $.ajax({
+                type: 'POST',
+                url: '/add-comment/',
+                data: {
+                    'post_id': post_id,
+                    'comment': comment,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(data) {
+                    if (data.success) {
+                        // Handle success
+                        location.reload();
+                    } else {
+                        // Handle error
+                        alert('Failed to add comment: ' + data.error);
+                    }
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log('Error while adding comment');
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        });
+    });
+</script>
+<script>
+    $(document).ready(function() {
+        $('.comment-like-btn').on('click', function(e) {
+            e.preventDefault();
+            var commentId = $(this).data('comment-id');
+    
+            $.ajax({
+                type: 'POST',
+                url: '/add-comment-like/' + commentId + '/',  // Replace with your actual URL
+                data: {
+                    'question_id': commentId,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.liked) {
+                        // If liked, update the like count display
+                        var likeCountSpan = $('.comment-like-count[data-comment-id="' + commentId + '"]');
+                        likeCountSpan.text(response.total_likes);
+                        location.reload();
+                    }
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log('Error while liking the question');
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>
